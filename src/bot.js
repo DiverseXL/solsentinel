@@ -100,16 +100,29 @@ async function main() {
 
   await bot.telegram.setMyCommands([
     { command: 'scan',     description: 'AI token safety scan' },
-    { command: 'new',      description: 'New listings this hour' },
-    { command: 'trending', description: 'Trending tokens + AI take' },
-    { command: 'wallet',   description: 'Cross-chain wallet X-ray' },
+    { command: 'new',      description: 'Emerging tokens + safety scores' },
+    { command: 'trending', description: 'Top tokens + AI market take' },
+    { command: 'wallet',   description: 'Wallet X-ray via Solscan' },
   ]);
 
-  await bot.launch();
-  console.log('✅ SolSentinel is live');
+  try {
+    // dropPendingUpdates prevents processing queued messages on startup (no API calls on boot)
+    await bot.launch({ dropPendingUpdates: true });
+    console.log('✅ SolSentinel is live');
+  } catch (err) {
+    if (err.message?.includes('409') || err.description?.includes('409')) {
+      console.error('⚠️  409 Conflict — another bot instance is already running.');
+      console.error('   Stop the other instance (Railway / local) before starting this one.');
+      process.exit(1);
+    }
+    throw err;
+  }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error('❌ Fatal error:', err.message);
+  process.exit(1);
+});
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));

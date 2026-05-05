@@ -1,6 +1,5 @@
 const birdeye = require('../services/birdeye');
 const jupiter = require('../services/jupiter');
-const goldrush = require('../services/goldrush');
 const { generateTokenVerdict } = require('../services/openai');
 const { calculateSafetyScore } = require('../utils/scorer');
 const { formatScanResult } = require('../utils/formatter');
@@ -28,24 +27,20 @@ module.exports = async function scanCommand(ctx) {
   }
 
   const statusMsg = await ctx.reply(
-    `⏳ Scanning \`${address.slice(0, 8)}...\`\n_Pulling market data, liquidity, deployer history..._`,
+    `⏳ Scanning \`${address.slice(0, 8)}...\`\n_Pulling market data, liquidity..._`,
     { parse_mode: 'Markdown' }
   );
 
   try {
-    // Sequential calls to avoid rate limits
+    // Only use working endpoints: token_overview (Birdeye) + liquidity (Jupiter)
     const overview = await birdeye.getTokenOverview(address);
-    const meta = await birdeye.getTokenMeta(address);
     const liquidity = await jupiter.checkLiquidity(address);
 
-    // Deployer check via GoldRush if we can find a deployer
-    let deployerHistory = null;
-
-    const scoreResult = calculateSafetyScore({ overview, liquidity, deployerHistory });
+    const scoreResult = calculateSafetyScore({ overview, liquidity, deployerHistory: null });
 
     const aiVerdict = await generateTokenVerdict({
-      tokenName: meta?.name || overview?.name || 'Unknown',
-      tokenSymbol: meta?.symbol || overview?.symbol || '???',
+      tokenName: overview?.name || 'Unknown',
+      tokenSymbol: overview?.symbol || '???',
       score: scoreResult.score,
       verdict: scoreResult.verdict,
       flags: scoreResult.flags,
@@ -54,7 +49,8 @@ module.exports = async function scanCommand(ctx) {
       liquidity,
     });
 
-    const message = formatScanResult({ meta, overview, scoreResult, liquidity, aiVerdict });
+    // Pass overview as meta since getTokenMeta is blocked
+    const message = formatScanResult({ meta: overview, overview, scoreResult, liquidity, aiVerdict });
 
     await ctx.telegram.editMessageText(
       ctx.chat.id, statusMsg.message_id, null,
