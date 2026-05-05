@@ -30,11 +30,47 @@ bot.start((ctx) => {
 
 bot.help((ctx) => {
   ctx.reply(
-    `*SolSentinel Commands*\n\n` +
-    `/scan <address> — Token safety scan\n` +
-    `/new — New listings this hour\n` +
-    `/trending — Trending tokens + AI take\n` +
-    `/wallet <address> — Wallet intelligence`,
+    `👁 *SolSentinel Help Guide*\n\n` +
+
+    `*What is SolSentinel?*\n` +
+    `An AI-powered Solana intelligence bot that scans tokens, tracks new listings, and gives you GPT-4o powered verdicts — all in seconds.\n\n` +
+
+    `*Commands*\n\n` +
+
+    `🔍 /scan <address>\n` +
+    `Scans any Solana token and gives it a safety score from 0-100.\n` +
+    `Example: /scan DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263\n\n` +
+
+    `🆕 /new\n` +
+    `Shows the newest Solana token listings from the last hour, each with an instant safety score. Great for spotting early gems before they trend.\n\n` +
+
+    `🔥 /trending\n` +
+    `Shows the top Solana tokens by volume right now, with an AI-generated market commentary.\n\n` +
+
+    `👁 /wallet <address>\n` +
+    `Scans any Solana wallet and gives you a cross-chain breakdown — holdings, transaction history, and an AI classification (Smart Money, Degen, Bot, Whale etc).\n` +
+    `Example: /wallet 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM\n\n` +
+
+    `*How scoring works*\n` +
+    `✅ 75-100 — SAFE\n` +
+    `⚠️ 50-74 — CAUTION\n` +
+    `🚨 0-49  — RUG RISK\n\n` +
+
+    `Scores are based on:\n` +
+    `• Holder count & buy/sell pressure (Birdeye)\n` +
+    `• Liquidity depth — $500 swap impact (Jupiter)\n` +
+    `• Deployer cross-chain history (GoldRush)\n\n` +
+
+    `*Tips*\n` +
+    `• You can paste a token address directly without /scan\n` +
+    `• Always check /new early — gems get sniped fast\n` +
+    `• Low score doesn't always mean rug — new tokens naturally score lower\n\n` +
+
+    `*Built with*\n` +
+    `Birdeye · Jupiter · GoldRush · GPT-4o Mini\n\n` +
+
+    `_Questions? Feedback? Tag us on X @SolSentinelBot_\n\n` +
+    `⚠️ *Disclaimer:* SolSentinel is a research tool only. Nothing here is financial advice. Always do your own research before trading. You are solely responsible for your investment decisions.`,
     { parse_mode: 'Markdown' }
   );
 });
