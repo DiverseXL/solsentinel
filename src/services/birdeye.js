@@ -1,7 +1,7 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
 
-const cache = new NodeCache({ stdTTL: 30 });
+const cache = new NodeCache({ stdTTL: 60 });
 
 const BASE = 'https://public-api.birdeye.so';
 
@@ -41,14 +41,14 @@ async function getTokenOverview(address) {
   return get(`/defi/token_overview`, { address }, 30);
 }
 
-async function getTrending(limit = 10) {
-  return get(`/defi/tokenlist`, { sort_by: 'v24hUSD', sort_type: 'desc', offset: 0, limit, min_liquidity: 1000 }, 60);
+async function getTrending(limit = 5) {
+  return get(`/defi/tokenlist`, { sort_by: 'v24hUSD', sort_type: 'desc', offset: 0, limit, min_liquidity: 1000 }, 300);
 }
 
-async function getNewListings(limit = 20) {
+async function getNewListings(limit = 5) {
   const time_to = Math.floor(Date.now() / 1000);
   const time_from = time_to - 60 * 60;
-  return get(`/defi/v2/tokens/new_listing`, { limit, time_from, time_to, sort_type: 'desc' }, 30);
+  return get(`/defi/v2/tokens/new_listing`, { limit, time_from, time_to, sort_type: 'desc' }, 300);
 }
 
 async function getTokenMeta(address) {
