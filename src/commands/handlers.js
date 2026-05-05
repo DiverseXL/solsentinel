@@ -155,33 +155,54 @@ async function walletCommand(ctx) {
   const statusMsg = await ctx.reply('👁 Analyzing wallet...');
 
   try {
-    // Fetch wallet data from Solscan public API (no key needed)
     const axios = require('axios');
+    const RPC_URL = 'https://api.mainnet-beta.solana.com';
 
-    const [txRes, balRes] = await Promise.allSettled([
-      axios.get(`https://public-api.solscan.io/account/transactions`, {
-        params: { account: address, limit: 10 },
-        headers: { 'accept': 'application/json' },
-        timeout: 8000,
+    // Fetch wallet data from Solana RPC
+    const [sigRes, tokenRes] = await Promise.allSettled([
+      axios.post(RPC_URL, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getSignaturesForAddress",
+        params: [address, { "limit": 10 }]
       }),
-      axios.get(`https://public-api.solscan.io/account/tokens`, {
-        params: { account: address },
-        headers: { 'accept': 'application/json' },
-        timeout: 8000,
-      }),
+      axios.post(RPC_URL, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccountsByOwner",
+        params: [
+          address,
+          { "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+          { "encoding": "jsonParsed" }
+        ]
+      })
     ]);
 
-    const txns = txRes.status === 'fulfilled' ? txRes.value.data : [];
-    const tokens = balRes.status === 'fulfilled' ? balRes.value.data : [];
+    const signatures = sigRes.status === 'fulfilled' ? sigRes.value.data?.result : [];
+    const tokenAccounts = tokenRes.status === 'fulfilled' ? tokenRes.value.data?.result?.value : [];
 
-    const topHoldings = Array.isArray(tokens)
-      ? tokens.slice(0, 5).map(t => ({ symbol: t.tokenSymbol || 'Unknown', valueUsd: t.tokenAmount?.uiAmount || 0 }))
+    const txCount = Array.isArray(signatures) ? signatures.length : 0;
+    const tokenCount = Array.isArray(tokenAccounts) ? tokenAccounts.length : 0;
+    
+    const mostRecentTx = signatures?.[0];
+    const lastActiveDate = mostRecentTx?.blockTime 
+      ? new Date(mostRecentTx.blockTime * 1000).toLocaleDateString()
+      : 'N/A';
+
+    const topHoldings = Array.isArray(tokenAccounts)
+      ? tokenAccounts.slice(0, 5).map(item => {
+          const info = item.account.data.parsed.info;
+          return {
+            mint: info.mint,
+            uiAmount: info.tokenAmount.uiAmount
+          };
+        })
       : [];
 
     const aiSummary = await generateWalletSummary({
       walletAddress: address,
-      birdeyeData: txns,
-      crossChainData: [],
+      txCount,
+      tokenCount,
       topHoldings,
     });
 
@@ -195,12 +216,14 @@ async function walletCommand(ctx) {
     if (topHoldings.length > 0) {
       msg += `💼 *Top Holdings*\n`;
       topHoldings.forEach(t => {
-        msg += `• ${esc(t.symbol)}: ${esc(String(t.valueUsd?.toFixed ? t.valueUsd.toFixed(4) : t.valueUsd))}\n`;
+        const displayMint = t.mint.slice(0, 4) + '...' + t.mint.slice(-4);
+        msg += `• \`${esc(displayMint)}\`: ${esc(String(t.uiAmount))}\n`;
       });
       msg += '\n';
     }
 
-    msg += `📜 Recent txns: ${Array.isArray(txns) ? txns.length : 0} shown\n\n`;
+    msg += `📜 Recent txns: ${txCount} shown \\(Last active: ${esc(lastActiveDate)}\\)\n`;
+    msg += `🪙 Tokens found: ${tokenCount}\n\n`;
     msg += `[View on Solscan](https://solscan.io/account/${address})`;
 
     await ctx.telegram.editMessageText(

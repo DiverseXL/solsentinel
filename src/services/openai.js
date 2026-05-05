@@ -35,15 +35,13 @@ Write a direct, confident verdict. No fluff. Crypto-native tone. If it's risky, 
   }
 }
 
-async function generateWalletSummary({ walletAddress, birdeyeData, crossChainData, topHoldings }) {
-  const chains = crossChainData?.filter(c => c.active).map(c => `${c.chain}: $${c.totalUsd?.toFixed(0)}`).join(', ') || 'Solana only';
-
+async function generateWalletSummary({ walletAddress, txCount, tokenCount, topHoldings }) {
   const prompt = `You are SolSentinel. Analyze this Solana wallet and classify it in 2-3 sentences.
 
 Wallet: ${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}
-Cross-chain activity: ${chains}
-Top Solana holdings: ${topHoldings?.slice(0, 3).map(h => h.symbol || 'Unknown').join(', ') || 'Unknown'}
-Recent tx count (Solana): ${birdeyeData?.length || 0} transactions
+Tokens found: ${tokenCount || 0}
+Recent transactions: ${txCount || 0}
+Top holdings (mints): ${topHoldings?.slice(0, 3).map(h => h.mint || 'Unknown').join(', ') || 'Unknown'}
 
 Classify this wallet as one of: Smart Money | Active Trader | Degen | Bot | Whale | Fresh Wallet
 Give your classification and brief reasoning. Note any interesting patterns. Keep it punchy.`;
