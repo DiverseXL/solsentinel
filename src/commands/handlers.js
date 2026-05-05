@@ -84,29 +84,64 @@ async function walletCommand(ctx) {
     return ctx.reply('👁 Usage: /wallet <solana wallet address>');
   }
 
-  const statusMsg = await ctx.reply('👁 Scanning wallet across chains...');
+  const statusMsg = await ctx.reply('👁 Analyzing wallet...');
 
   try {
-    const [portfolio, txns, crossChain] = await Promise.all([
-      birdeye.getWalletPortfolio(address),
-      birdeye.getWalletTxns(address, 20),
-      goldrush.getWalletCrossChainSummary(address),
+    const { generateWalletSummary } = require('../services/openai');
+
+    // Fetch wallet data from Solscan public API
+    const axios = require('axios');
+
+    const [txRes, balRes] = await Promise.allSettled([
+      axios.get(`https://public-api.solscan.io/account/transactions`, {
+        params: { account: address, limit: 10 },
+        headers: { 'accept': 'application/json' },
+        timeout: 8000,
+      }),
+      axios.get(`https://public-api.solscan.io/account/tokens`, {
+        params: { account: address },
+        headers: { 'accept': 'application/json' },
+        timeout: 8000,
+      }),
     ]);
 
-    const topHoldings = portfolio?.items?.filter(t => t.valueUsd > 1).slice(0, 5) || [];
+    const txns = txRes.status === 'fulfilled' ? txRes.value.data : [];
+    const tokens = balRes.status === 'fulfilled' ? balRes.value.data : [];
+
+    const topHoldings = Array.isArray(tokens)
+      ? tokens.slice(0, 5).map(t => ({ symbol: t.tokenSymbol || 'Unknown', valueUsd: t.tokenAmount?.uiAmount || 0 }))
+      : [];
 
     const aiSummary = await generateWalletSummary({
       walletAddress: address,
       birdeyeData: txns,
-      crossChainData: crossChain,
+      crossChainData: [],
       topHoldings,
     });
 
-    const message = formatWallet({ address, portfolio, txns, crossChain, aiSummary });
+    const { esc } = require('../utils/formatter');
+
+    let msg = `👁 *Wallet X\\-Ray*\n`;
+    msg += `\`${esc(address)}\`\n\n`;
+
+    if (aiSummary) {
+      msg += `🤖 *AI Classification*\n${esc(aiSummary)}\n\n`;
+    }
+
+    if (topHoldings.length > 0) {
+      msg += `💼 *Top Holdings*\n`;
+      topHoldings.forEach(t => {
+        msg += `• ${esc(t.symbol)}: ${esc(String(t.valueUsd?.toFixed ? t.valueUsd.toFixed(4) : t.valueUsd))}\n`;
+      });
+      msg += '\n';
+    }
+
+    msg += `📜 Recent txns: ${Array.isArray(txns) ? txns.length : 0} shown\n\n`;
+    msg += `[View on Solscan](https://solscan.io/account/${address})`;
 
     await ctx.telegram.editMessageText(
       ctx.chat.id, statusMsg.message_id, null,
-      message,
+      msg,
       { parse_mode: 'MarkdownV2', disable_web_page_preview: true }
     );
 
