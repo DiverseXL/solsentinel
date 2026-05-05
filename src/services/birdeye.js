@@ -2,6 +2,7 @@ const axios = require('axios');
 const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 60 });
+const { throttle } = require('../utils/ratelimit');
 
 const BASE = 'https://public-api.birdeye.so';
 
@@ -15,6 +16,8 @@ async function get(path, params = {}, ttl = 30) {
   const key = `be:${path}:${JSON.stringify(params)}`;
   const hit = cache.get(key);
   if (hit) return hit;
+
+  await throttle(); // wait if needed before firing
 
   try {
     const { data } = await axios.get(`${BASE}${path}`, {
