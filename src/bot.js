@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const { Telegraf } = require('telegraf');
 const scanCommand = require('./commands/scan');
-const { newCommand, trendingCommand, walletCommand, summaryCommand } = require('./commands/handlers');
+const { newCommand, trendingCommand, walletCommand, summaryCommand, alertCommand, myAlertsCommand } = require('./commands/handlers');
+const { startPoller } = require('./alerts/pricepoller');
 
 const required = ['TELEGRAM_BOT_TOKEN', 'BIRDEYE_API_KEY', 'OPENAI_API_KEY'];
 for (const key of required) {
@@ -84,6 +85,8 @@ bot.command('new', newCommand);
 bot.command('trending', trendingCommand);
 bot.command('wallet', walletCommand);
 bot.command('summary', summaryCommand);
+bot.command('alert', alertCommand);
+bot.command('myalerts', myAlertsCommand);
 
 // Auto-detect pasted token addresses
 bot.on('text', async (ctx, next) => {
@@ -109,9 +112,14 @@ async function main() {
     { command: 'trending', description: 'Top tokens + AI market take' },
     { command: 'summary',  description: 'Solana market summary' },
     { command: 'wallet',   description: 'Wallet X-ray via Solscan' },
+    { command: 'alert',    description: 'Set a price alert for a token' },
+    { command: 'myalerts', description: 'View your active alerts' },
   ]);
 
   try {
+    // Start the background price poller
+    startPoller(bot);
+
     // dropPendingUpdates prevents processing queued messages on startup (no API calls on boot)
     await bot.launch({ dropPendingUpdates: true });
     console.log('✅ SolSentinel is live');

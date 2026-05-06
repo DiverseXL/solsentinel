@@ -1,5 +1,6 @@
 const birdeye = require('../services/birdeye');
 const jupiter = require('../services/jupiter');
+const { addAlert, removeAlert, getAlerts } = require('../utils/alertstore');
 const { generateWalletSummary, generateTrendingCommentary } = require('../services/openai');
 const { calculateSafetyScore } = require('../utils/scorer');
 const { formatTrending, esc, fmtUSD } = require('../utils/formatter');
@@ -320,4 +321,90 @@ async function summaryCommand(ctx) {
   }
 }
 
-module.exports = { newCommand, trendingCommand, walletCommand, summaryCommand };
+async function alertCommand(ctx) {
+  const input = ctx.message?.text?.split(' ').slice(1).join(' ')?.trim();
+
+  if (!input) {
+    return ctx.reply(
+      '🔔 Usage: /alert <token address or symbol>\n\n' +
+      'You will be notified when the price moves 10% or more.\n\n' +
+      'Example: /alert DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'
+    );
+  }
+
+  const statusMsg = await ctx.reply('⏳ Setting up alert...');
+
+  try {
+    let address = input;
+    if (input.length < 30) {
+      address = await jupiter.resolveMint(input);
+      if (!address) {
+        return ctx.telegram.editMessageText(
+          ctx.chat.id, statusMsg.message_id, null,
+          `❌ Could not find token: ${input}. Try the full contract address.`
+        );
+      }
+    }
+
+    const priceData = await jupiter.getPrice(address);
+    if (!priceData?.price) {
+      return ctx.telegram.editMessageText(
+        ctx.chat.id, statusMsg.message_id, null,
+        '❌ Could not fetch current price. Make sure the token is tradable on Jupiter.'
+      );
+    }
+
+    const overview = await birdeye.getTokenOverview(address);
+    const symbol = overview?.symbol || input.toUpperCase();
+    const currentPrice = priceData.price;
+
+    addAlert(ctx.chat.id, address, symbol, currentPrice);
+
+    const { esc } = require('../utils/formatter');
+
+    let msg = `🔔 *Alert Set\\!*\n\n`;
+    msg += `Token: *${esc(symbol)}*\n`;
+    msg += `Current price: $${esc(currentPrice.toFixed(8))}\n`;
+    msg += `Trigger: price moves ±10%\n\n`;
+    msg += `_You will be notified when ${esc(symbol)} moves 10% or more from now_`;
+
+    await ctx.telegram.editMessageText(
+      ctx.chat.id, statusMsg.message_id, null,
+      msg,
+      { parse_mode: 'MarkdownV2' }
+    );
+
+  } catch (err) {
+    console.error('[/alert] Error:', err.message);
+    await ctx.telegram.editMessageText(
+      ctx.chat.id, statusMsg.message_id, null,
+      `❌ Alert failed: ${err.message}`
+    );
+  }
+}
+
+async function myAlertsCommand(ctx) {
+  const alerts = getAlerts(ctx.chat.id);
+  const entries = Object.entries(alerts);
+
+  if (!entries.length) {
+    return ctx.reply(
+      '🔔 You have no active alerts.\n\nSet one with /alert <token address>'
+    );
+  }
+
+  const { esc } = require('../utils/formatter');
+  let msg = `🔔 *Your Active Alerts*\n\n`;
+
+  entries.forEach(([address, data], i) => {
+    msg += `${i + 1}\\. *${esc(data.symbol)}*\n`;
+    msg += `   Last price: $${esc(data.lastPrice.toFixed(8))}\n`;
+    msg += `   \`${esc(address)}\`\n\n`;
+  });
+
+  msg += `_Alerts trigger when price moves ±10%_`;
+
+  await ctx.reply(msg, { parse_mode: 'MarkdownV2' });
+}
+
+module.exports = { newCommand, trendingCommand, walletCommand, summaryCommand, alertCommand, myAlertsCommand };
