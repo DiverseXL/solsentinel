@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const { Telegraf } = require('telegraf');
 const scanCommand = require('./commands/scan');
-const { newCommand, trendingCommand, walletCommand } = require('./commands/handlers');
+const { newCommand, trendingCommand, walletCommand, summaryCommand } = require('./commands/handlers');
 
 const required = ['TELEGRAM_BOT_TOKEN', 'BIRDEYE_API_KEY', 'OPENAI_API_KEY'];
 for (const key of required) {
@@ -22,6 +22,7 @@ bot.start((ctx) => {
     `/scan <address> — Full AI token safety scan\n` +
     `/new — New listings + instant safety scores\n` +
     `/trending — Top tokens + AI market commentary\n` +
+    `/summary — Solana market snapshot \\(top gainer, loser, most traded\\)\n` +
     `/wallet <address> — Cross-chain wallet X-ray\n\n` +
     `_Powered by Birdeye · Jupiter · GoldRush · GPT-4o Mini_`,
     { parse_mode: 'Markdown' }
@@ -46,6 +47,9 @@ bot.help((ctx) => {
 
     `🔥 /trending\n` +
     `Shows the top Solana tokens by volume right now, with an AI-generated market commentary.\n\n` +
+
+    `📊 /summary\n` +
+    `A quick Solana market snapshot across BONK, WIF, MEW, BOME & JUP — shows the top gainer, biggest loser, most traded by volume, and an AI market mood.\n\n` +
 
     `👁 /wallet <address>\n` +
     `Scans any Solana wallet and gives you a cross-chain breakdown — holdings, transaction history, and an AI classification (Smart Money, Degen, Bot, Whale etc).\n` +
@@ -79,6 +83,7 @@ bot.command('scan', scanCommand);
 bot.command('new', newCommand);
 bot.command('trending', trendingCommand);
 bot.command('wallet', walletCommand);
+bot.command('summary', summaryCommand);
 
 // Auto-detect pasted token addresses
 bot.on('text', async (ctx, next) => {
@@ -102,6 +107,7 @@ async function main() {
     { command: 'scan',     description: 'AI token safety scan' },
     { command: 'new',      description: 'Emerging tokens + safety scores' },
     { command: 'trending', description: 'Top tokens + AI market take' },
+    { command: 'summary',  description: 'Solana market summary' },
     { command: 'wallet',   description: 'Wallet X-ray via Solscan' },
   ]);
 

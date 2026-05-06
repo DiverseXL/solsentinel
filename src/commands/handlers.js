@@ -241,4 +241,83 @@ async function walletCommand(ctx) {
   }
 }
 
-module.exports = { newCommand, trendingCommand, walletCommand };
+async function summaryCommand(ctx) {
+  const statusMsg = await ctx.reply('📊 Building market summary...');
+
+  const TOKENS = [
+    { address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK' },
+    { address: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol: 'WIF' },
+    { address: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', symbol: 'MEW' },
+    { address: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', symbol: 'BOME' },
+    { address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', symbol: 'JUP' },
+  ];
+
+  try {
+    const { throttle } = require('../utils/ratelimit');
+    const { generateTrendingCommentary } = require('../services/openai');
+    const { esc, fmtUSD } = require('../utils/formatter');
+
+    const results = [];
+    for (const token of TOKENS) {
+      await throttle();
+      const overview = await birdeye.getTokenOverview(token.address);
+      if (overview) results.push({ ...overview, _symbol: token.symbol });
+    }
+
+    if (!results.length) {
+      return ctx.telegram.editMessageText(
+        ctx.chat.id, statusMsg.message_id, null,
+        '❌ Could not fetch market data right now. Try again in a moment.'
+      );
+    }
+
+    // Find top gainer, loser, most traded
+    const sorted = [...results].sort((a, b) =>
+      (b.priceChange24hPercent ?? 0) - (a.priceChange24hPercent ?? 0)
+    );
+
+    const topGainer = sorted[0];
+    const biggestLoser = sorted[sorted.length - 1];
+    const mostTraded = [...results].sort((a, b) =>
+      (b.v24hUSD ?? 0) - (a.v24hUSD ?? 0)
+    )[0];
+
+    // AI market mood
+    const aiMood = await generateTrendingCommentary(results);
+
+    const gainerChange = topGainer?.priceChange24hPercent?.toFixed(2) ?? '0';
+    const loserChange = biggestLoser?.priceChange24hPercent?.toFixed(2) ?? '0';
+
+    let msg = `📊 *Solana Market Summary*\n\n`;
+
+    msg += `🏆 *Top Gainer*\n`;
+    msg += `${esc(topGainer?.name)} \\(${esc(topGainer?._symbol)}\\) — ▲ ${esc(gainerChange)}% — $${esc(topGainer?.price?.toFixed(6) ?? 'N/A')}\n\n`;
+
+    msg += `📉 *Biggest Loser*\n`;
+    msg += `${esc(biggestLoser?.name)} \\(${esc(biggestLoser?._symbol)}\\) — ▼ ${esc(Math.abs(loserChange).toString())}% — $${esc(biggestLoser?.price?.toFixed(6) ?? 'N/A')}\n\n`;
+
+    msg += `💰 *Most Traded*\n`;
+    msg += `${esc(mostTraded?.name)} \\(${esc(mostTraded?._symbol)}\\) — ${esc(fmtUSD(mostTraded?.v24hUSD))} 24h volume\n\n`;
+
+    if (aiMood) {
+      msg += `🤖 *AI Market Mood*\n${esc(aiMood)}\n\n`;
+    }
+
+    msg += `_Updated: ${esc(new Date().toUTCString())}_`;
+
+    await ctx.telegram.editMessageText(
+      ctx.chat.id, statusMsg.message_id, null,
+      msg,
+      { parse_mode: 'MarkdownV2', disable_web_page_preview: true }
+    );
+
+  } catch (err) {
+    console.error('[/summary] Error:', err.message);
+    await ctx.telegram.editMessageText(
+      ctx.chat.id, statusMsg.message_id, null,
+      `❌ Summary failed: ${err.message}`
+    );
+  }
+}
+
+module.exports = { newCommand, trendingCommand, walletCommand, summaryCommand };
