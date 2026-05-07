@@ -3,17 +3,18 @@ const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 20 });
 
-const BASE_PRICE = 'https://api.jup.ag/price/v2';
+const BASE_PRICE = 'https://api.jup.ag/price/v3';
 const BASE_QUOTE = 'https://api.jup.ag/swap/v1';
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const JUP_API_KEY = process.env.JUP_API_KEY || '';
 
-async function get(url, params = {}, ttl = 20) {
+async function get(url, params = {}, ttl = 20, headers = {}) {
   const key = `jup:${url}:${JSON.stringify(params)}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   try {
-    const { data } = await axios.get(url, { params, timeout: 8000 });
+    const { data } = await axios.get(url, { params, headers, timeout: 8000 });
     cache.set(key, data, ttl);
     return data;
   } catch (err) {
@@ -23,7 +24,8 @@ async function get(url, params = {}, ttl = 20) {
 }
 
 async function getPrice(mintAddress) {
-  const data = await get(`${BASE_PRICE}`, { ids: mintAddress });
+  const headers = JUP_API_KEY ? { 'x-api-key': JUP_API_KEY } : {};
+  const data = await get(`${BASE_PRICE}`, { ids: mintAddress }, 20, headers);
   return data?.data?.[mintAddress] || null;
 }
 
