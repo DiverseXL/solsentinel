@@ -3,7 +3,7 @@ const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 20 });
 
-const BASE_PRICE = 'https://price.jup.ag/v6';
+const BASE_PRICE = 'https://api.jup.ag/price/v2';
 const BASE_QUOTE = 'https://api.jup.ag/swap/v1';
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
@@ -23,7 +23,7 @@ async function get(url, params = {}, ttl = 20) {
 }
 
 async function getPrice(mintAddress) {
-  const data = await get(`${BASE_PRICE}/price`, { ids: mintAddress });
+  const data = await get(`${BASE_PRICE}`, { ids: mintAddress });
   return data?.data?.[mintAddress] || null;
 }
 
