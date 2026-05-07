@@ -3,7 +3,7 @@ const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 20 });
 
-const BASE_PRICE = 'https://api.jup.ag/price/v2';
+const BASE_PRICE = 'https://api.jup.ag/price/v3';
 const BASE_QUOTE = 'https://api.jup.ag/swap/v1';
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const JUP_API_KEY = process.env.JUP_API_KEY || '';
@@ -26,9 +26,12 @@ async function get(url, params = {}, ttl = 20, headers = {}) {
 async function getPrice(mintAddress) {
   const headers = JUP_API_KEY ? { 'x-api-key': JUP_API_KEY } : {};
   const data = await get(`${BASE_PRICE}`, { ids: mintAddress }, 20, headers);
-  const entry = data?.data?.[mintAddress] || null;
-  // Jupiter v2 returns price as a string — parse to number for downstream .toFixed() calls
-  if (entry?.price) entry.price = parseFloat(entry.price);
+  // v3 response: { [mint]: { usdPrice, priceChange24h, liquidity, ... } } — no .data wrapper
+  const entry = data?.[mintAddress] || null;
+  // Normalise to { price: number } so all downstream consumers work unchanged
+  if (entry?.usdPrice !== undefined) {
+    entry.price = parseFloat(entry.usdPrice);
+  }
   return entry;
 }
 
