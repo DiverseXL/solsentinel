@@ -26,7 +26,10 @@ async function get(url, params = {}, ttl = 20, headers = {}) {
 async function getPrice(mintAddress) {
   const headers = JUP_API_KEY ? { 'x-api-key': JUP_API_KEY } : {};
   const data = await get(`${BASE_PRICE}`, { ids: mintAddress }, 20, headers);
-  return data?.data?.[mintAddress] || null;
+  const entry = data?.data?.[mintAddress] || null;
+  // Jupiter v2 returns price as a string — parse to number for downstream .toFixed() calls
+  if (entry?.price) entry.price = parseFloat(entry.price);
+  return entry;
 }
 
 async function checkLiquidity(tokenMint) {

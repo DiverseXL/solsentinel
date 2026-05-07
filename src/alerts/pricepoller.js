@@ -14,8 +14,10 @@ async function checkAlerts(bot) {
         const priceData = await jupiter.getPrice(address);
         if (!priceData?.price) continue;
 
-        const currentPrice = priceData.price;
-        const lastPrice = data.lastPrice;
+        const currentPrice = parseFloat(priceData.price);
+        const lastPrice = parseFloat(data.lastPrice);
+        if (isNaN(currentPrice) || isNaN(lastPrice) || lastPrice === 0) continue;
+
         const changePercent = ((currentPrice - lastPrice) / lastPrice) * 100;
 
         if (Math.abs(changePercent) >= CHANGE_THRESHOLD) {
