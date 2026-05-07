@@ -3,7 +3,7 @@ const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 20 });
 
-const BASE_PRICE = 'https://api.jup.ag/price/v3';
+const BASE_PRICE = 'https://api.jup.ag/price/v2';
 const BASE_QUOTE = 'https://api.jup.ag/swap/v1';
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const JUP_API_KEY = process.env.JUP_API_KEY || '';

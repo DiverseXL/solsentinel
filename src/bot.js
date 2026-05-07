@@ -106,6 +106,7 @@ bot.catch((err, ctx) => {
 async function main() {
   console.log('🚀 SolSentinel starting...');
 
+  // Set commands
   await bot.telegram.setMyCommands([
     { command: 'scan',     description: 'AI token safety scan' },
     { command: 'new',      description: 'Emerging tokens + safety scores' },
@@ -116,25 +117,28 @@ async function main() {
     { command: 'myalerts', description: 'View your active alerts' },
   ]);
 
-  try {
-    // Start the background price poller
-    startPoller(bot);
+  // Wait 5 seconds to let previous instances shut down (Railway fix)
+  console.log('⏳ Waiting 5s for previous instance to settle...');
+  await new Promise(r => setTimeout(r, 5000));
 
-    // dropPendingUpdates prevents processing queued messages on startup (no API calls on boot)
-    await bot.launch({ dropPendingUpdates: true });
-    console.log('✅ SolSentinel is live');
-  } catch (err) {
-    if (err.message?.includes('409') || err.description?.includes('409')) {
-      console.error('⚠️  409 Conflict — another bot instance is already running.');
-      console.error('   Stop the other instance (Railway / local) before starting this one.');
-      process.exit(1);
-    }
-    throw err;
-  }
+  // Launch bot
+  await bot.launch({
+    dropPendingUpdates: true,
+    allowedUpdates: [],
+  });
+
+  // Start background tasks AFTER launch
+  startPoller(bot);
+
+  console.log('✅ SolSentinel is live');
 }
 
 main().catch((err) => {
-  console.error('❌ Fatal error:', err.message);
+  if (err.message?.includes('409')) {
+    console.error('⚠️  409 Conflict — another instance is running. Exiting.');
+    process.exit(0);
+  }
+  console.error(err);
   process.exit(1);
 });
 
